@@ -8,12 +8,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      MC_VERSION: "RELEASE.2025-05-21T01-59-54Z"
-      FINAL_VERSION: "mc-${{ env.MC_VERSION }}-static"
-      BUILD_DATE: ${{ github.run_date }}
 
     steps:
+      - name: Set Environment Variables
+        run: |
+          echo "MC_VERSION=RELEASE.2025-05-21T01-59-54Z" >> $GITHUB_ENV
+          echo "FINAL_VERSION=mc-$MC_VERSION-static" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d')" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
