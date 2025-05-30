@@ -11,6 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # Step 6: Verify PAT Access (temporary debugging step).
+      - name: Verify PAT Access
+        env:
+          MY_PAT: ${{ secrets.MY_PAT }}
+        run: |
+          echo "Listing remote refs to test PAT authentication..."
+          git ls-remote https://$MY_PAT@github.com/georgeabr/static-apps.git
+    
       # Step 1: Checkout your repository.
       - name: Checkout Repository
         uses: actions/checkout@v4
