@@ -27,7 +27,7 @@ jobs:
           sudo apt-get install -y build-essential libncurses-dev autoconf zip
 
       # Step 4: Build Vim with static linking.
-      - name: Build Vim (Static x64)
+      - name: Build Vim (Static x86-64)
         run: |
           cd vim
           [ -f Makefile ] && make clean || echo "No previous build detected"
@@ -46,11 +46,11 @@ jobs:
           # Extract the major.minor version (e.g., "8.2")
           VIM_MAJOR_MINOR=$(echo "$VIM_VERSION_OUTPUT" | sed -E 's/[^0-9]*([0-9]+\.[0-9]+).*/\1/')
           echo "VIM_MAJOR_MINOR is ${VIM_MAJOR_MINOR}"
-          # Extract the patch level from "Included patches:" line.
+          # Extract the patch level from the "Included patches:" line.
           PATCH_OUTPUT=$(build/bin/vim --version | grep "Included patches:")
           PATCHLEVEL=$(echo "$PATCH_OUTPUT" | sed 's/.*-//' | awk '{print $1}')
           echo "PATCHLEVEL is ${PATCHLEVEL}"
-          # Combine them to form the final version string (e.g., "8.2.1234").
+          # Combine to form the final version string (e.g., "8.2.1234").
           FINAL_VERSION="${VIM_MAJOR_MINOR}.${PATCHLEVEL}"
           echo "FINAL_VERSION is ${FINAL_VERSION}"
           echo "FINAL_VERSION=${FINAL_VERSION}" >> $GITHUB_ENV
@@ -66,11 +66,11 @@ jobs:
           echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 7: Create a ZIP archive containing only the files (no nested folder).
+      # Step 7: Create a ZIP archive containing only the files (without nested folder).
       - name: Create Release Zip
         run: |
-          # The -j option discards directory paths.
-          zip -j vim${FINAL_VERSION}.zip release_temp/vim release_temp/release_info.txt
+          # The -j option discards directory paths so that the ZIP archive contains only files.
+          zip -j vim-${FINAL_VERSION}.zip release_temp/vim release_temp/release_info.txt
         shell: bash
 
       # (Optional) Step: List workspace files to verify the ZIP is present.
@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vim-static-${{ env.FINAL_VERSION }}
-          path: vim${{ env.FINAL_VERSION }}.zip
+          path: vim-${{ env.FINAL_VERSION }}.zip
 
       # Step 9: Get Build Date for release info.
       - name: Get Build Date
@@ -97,10 +97,11 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.FINAL_VERSION }}
-          name: "Vim ${{ env.FINAL_VERSION }} Latest"
+          name: "Vim ${{ env.FINAL_VERSION }}"
           body: |
+            Statically linked x86-64 executable
             **Release Version:** ${{ env.FINAL_VERSION }}
             **Build Date:** ${{ env.BUILD_DATE }}
             **Commit:** ${{ github.sha }}
           artifacts: |
-            vim${{ env.FINAL_VERSION }}.zip
+            vim-${{ env.FINAL_VERSION }}.zip
