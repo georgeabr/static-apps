@@ -1,9 +1,9 @@
-name: Vim Static Release 
+name: vim-static
 
 on:
   push:
     paths:
-      - ".github/workflows/vim-static-release.yml"
+      - ".github/workflows/vim-static.yml"
   workflow_dispatch:
 
 jobs:
@@ -11,46 +11,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1. Check out your repository.
+      # Step 1: Checkout your repository.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2. Clone the official Vim repository.
+      # Step 2: Clone the official Vim repository.
       - name: Clone Vim Source
         run: |
           git clone https://github.com/vim/vim.git
 
-      # Step 3. Install required build dependencies.
+      # Step 3: Install required build dependencies.
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev autoconf zip
 
-      # Step 4. Set the build version based on the GitHub run number.
+      # Step 4: Set a build version based on the GitHub run number.
       - name: Set Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "Build version set to ${BUILD_VERSION}"
         shell: bash
 
-      # Step 5. Build Vim with static linking.
-      # This step enters the cloned vim directory, cleans any previous build,
-      # runs autogen.sh if needed, configures Vim for a huge feature set with static linking,
-      # compiles it, and installs it into a dedicated build directory.
+      # Step 5: Build Vim with static linking.
       - name: Build Vim (Static x64)
         run: |
           cd vim
+          # Clean any previous build artifacts if they exist.
           [ -f Makefile ] && make clean || echo "No previous build detected"
-          # If the configure script is missing, generate it with autogen.sh.
+          # Generate the 'configure' script if it's missing.
           [ ! -f configure ] && ./autogen.sh
+          # Configure Vim with a huge feature set and static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
+          # Build Vim forcing static linking.
           make LDFLAGS=-static -j$(nproc)
+          # Install Vim into the build directory.
           make install
         shell: bash
 
-      # Step 6. Prepare the release directory.
-      # This step copies the built vim executable (assumed to be installed at build/bin/vim)
-      # into a fresh "release" folder and writes release/build info into a file.
+      # Step 6: Prepare the release directory.
+      # This step copies the built Vim executable (assumed to be at build/bin/vim)
+      # into a new "release" folder and writes release/build information.
       - name: Prepare Release Directory
         run: |
           mkdir release
@@ -60,22 +61,20 @@ jobs:
           echo "Commit: ${{ github.sha }}" >> release/release_info.txt
         shell: bash
 
-      # Step 7. Create a ZIP archive.
-      # The archive is named with the build version and contains the vim executable and release info.
+      # Step 7: Create a ZIP archive of the release folder.
       - name: Create Release Zip
         run: |
           zip -r vim-${BUILD_VERSION}.zip release
         shell: bash
 
-      # Step 8. Upload the ZIP artifact.
+      # Step 8: Upload the ZIP artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vim-static-${{ env.BUILD_VERSION }}
           path: vim-${{ env.BUILD_VERSION }}.zip
 
-      # Step 9. Create a GitHub Release.
-      # Uses ncipollo's release-action to create a GitHub release and attach the ZIP package.
+      # Step 9: Create a GitHub Release and attach the ZIP file.
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1
@@ -83,7 +82,7 @@ jobs:
           tag: ${{ env.BUILD_VERSION }}
           name: "Vim ${BUILD_VERSION}"
           body: |
-            **Release Version**: ${BUILD_VERSION}
-            **Build Date**: $(date)
-            **Commit**: ${{ github.sha }}
+            **Release Version:** ${BUILD_VERSION}
+            **Build Date:** $(date)
+            **Commit:** ${{ github.sha }}
           files: vim-${{ env.BUILD_VERSION }}.zip
