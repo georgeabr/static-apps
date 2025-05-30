@@ -11,15 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # Step 6: Verify PAT Access (temporary debugging step).
-      - name: Verify PAT Access
-        env:
-          MY_PAT: ${{ secrets.MY_PAT }}
-        run: |
-          echo "Listing remote refs to test PAT authentication..."
-          git ls-remote https://$MY_PAT@github.com/georgeabr/static-apps.git
-    
       # Step 1: Checkout your repository.
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -28,13 +19,13 @@ jobs:
       - name: Clone Official Vim Repository
         run: git clone https://github.com/vim/vim.git
 
-      # Step 3: Install required build dependencies.
+      # Step 3: Install the required build dependencies.
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev zip autoconf
 
-      # Step 4: Set the build version using the GitHub run number.
+      # Step 4: Set the build version (e.g. v1, v2, …) using the GitHub run number.
       - name: Set Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
@@ -46,7 +37,7 @@ jobs:
           cd vim
           # Clean previous builds if a Makefile exists.
           [ -f Makefile ] && make clean || echo "No previous build – starting fresh"
-          # If the 'configure' script does not exist, try generating it.
+          # If the 'configure' script is missing, generate it by running autogen.sh.
           if [ ! -f configure ]; then
             echo "configure not found; generating it using autogen.sh"
             if [ -f autogen.sh ]; then
@@ -57,31 +48,41 @@ jobs:
           fi
           # Configure Vim for a huge feature set with static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
-          # Compile Vim forcing static linking.
+          # Build Vim, forcing static linking.
           make LDFLAGS=-static -j$(nproc)
           # Install Vim into the build directory.
           make install
         shell: bash
 
-      # Step 6: Tag your repository with the build version using a PAT.
+      # Step 6: Verify PAT Access (temporary debugging step).
+      - name: Verify PAT Access
+        env:
+          MY_PAT: ${{ secrets.MY_PAT }}
+        run: |
+          echo "Listing remote refs to test PAT authentication..."
+          git ls-remote https://$MY_PAT@github.com/georgeabr/static-apps.git
+        shell: bash
+
+      # Step 7: Tag your repository with the build version using your PAT.
       - name: Tag Repository with Build Version
         env:
           MY_PAT: ${{ secrets.MY_PAT }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # Instead of using github-actions[bot], set the git user to your GitHub username.
+          git config --global user.name "georgeabr"
+          git config --global user.email "georgeabr@users.noreply.github.com"
           echo "Tagging commit with ${BUILD_VERSION}"
           git tag ${BUILD_VERSION}
-          # Push the tag using the PAT. This URL format authenticates the push.
-          git push https://$MY_PAT@github.com/${{ github.repository }} ${BUILD_VERSION}
+          # Push the tag using the PAT. Note the .git suffix in the URL.
+          git push https://$MY_PAT@github.com/georgeabr/static-apps.git ${BUILD_VERSION}
         shell: bash
 
-      # Step 7: Create a ZIP artifact from the built Vim installation.
+      # Step 8: Package the built Vim installation into a ZIP file.
       - name: Create Artifact Zip
         run: zip -r vim-${BUILD_VERSION}.zip build
         shell: bash
 
-      # Step 8: Upload the ZIP artifact.
+      # Step 9: Upload the ZIP artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
