@@ -31,6 +31,13 @@ jobs:
           tar -xf mc.tar.gz
           mv mc-${MC_VERSION} mc-source
 
+      - name: Provide dummy autopoint
+        run: |
+          # Create a dummy autopoint that does nothing, to satisfy autoreconf
+          echo '#!/bin/sh' > dummy_autopoint
+          chmod +x dummy_autopoint
+          sudo mv dummy_autopoint /usr/local/bin/autopoint
+
       - name: Generate configure script and build static binary
         run: |
           cd mc-source
