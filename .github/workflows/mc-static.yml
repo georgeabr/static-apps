@@ -15,11 +15,11 @@ jobs:
       RELEASE_NAME: "Midnight Commander 4.8.33 Static Build"
 
     steps:
-      # Check out the repository in case any modifications are present.
+      # Check out the repository.
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Install the required build dependencies.
+      # Install required build dependencies.
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -37,7 +37,7 @@ jobs:
       - name: Configure and build static binary with VFS enabled
         run: |
           cd mc-${MC_VERSION}
-          # Force static linking (requires static versions of dependencies)
+          # Force static linking (ensure that all needed static libraries are available)
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
@@ -69,9 +69,9 @@ jobs:
           asset_name: mc-static
           asset_content_type: application/octet-stream
 
-      # Also upload the binary as an artifact.
+      # Also upload the binary as an artifact using the stable v2 action.
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: mc-static-artifact
           path: mc-static
