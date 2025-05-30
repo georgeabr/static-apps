@@ -1,0 +1,65 @@
+name: vim-static
+
+# Trigger the workflow only when this workflow file is modified.
+on:
+  push:
+    paths:
+      - ".github/workflows/vim-static.yml"
+  # Optionally allow manual triggering for testing.
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install build dependencies.
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev zip
+          # Add any additional packages as required by your Vim configuration.
+
+      # Step 3: Set the build version using the GitHub run number.
+      - name: Set Build Version
+        run: |
+          echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "Build version set to ${BUILD_VERSION}"
+
+      # Step 4: Compile static Vim for x64.
+      - name: Compile Vim
+        run: |
+          # Clean previous builds if Makefile already exists.
+          [ -f Makefile ] && make clean || echo "No previous build – starting fresh"
+          # Configure Vim for a huge feature set with static linking.
+          ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$PWD/build
+          # Compile using available cores and force static linking.
+          make LDFLAGS=-static -j$(nproc)
+          # Install into the build directory.
+          make install
+
+      # Step 5: Tag the commit with the build version.
+      - name: Tag Commit with Build Version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Tagging commit with ${BUILD_VERSION}"
+          git tag ${BUILD_VERSION}
+          git push origin ${BUILD_VERSION}
+
+      # Step 6: Create a ZIP artifact from the built Vim installation.
+      - name: Create Artifact Zip
+        run: zip -r vim-${BUILD_VERSION}.zip build
+
+      # Step 7: Upload the ZIP artifact.
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vim-static-${{ env.BUILD_VERSION }}
+          path: vim-${{ env.BUILD_VERSION }}.zip
