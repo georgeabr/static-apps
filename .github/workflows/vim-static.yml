@@ -1,11 +1,10 @@
 name: vim-static
 
-# Trigger the workflow only when this workflow file is modified.
+# Trigger only when this workflow file is modified.
 on:
   push:
     paths:
       - ".github/workflows/vim-static.yml"
-  # Optionally allow manual triggering for testing.
   workflow_dispatch:
 
 jobs:
@@ -21,8 +20,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev zip
-          # Add any additional packages as required by your Vim configuration.
+          sudo apt-get install -y build-essential libncurses-dev zip autoconf
 
       # Step 3: Set the build version using the GitHub run number.
       - name: Set Build Version
@@ -31,12 +29,17 @@ jobs:
           echo "Build version set to ${BUILD_VERSION}"
 
       # Step 4: Compile static Vim for x64.
+      # Switch into the src directory since that's where the build scripts are located.
+      # If the `configure` script isn't present, run `./autogen.sh` to generate it.
       - name: Compile Vim
         run: |
+          cd src
           # Clean previous builds if Makefile already exists.
           [ -f Makefile ] && make clean || echo "No previous build – starting fresh"
+          # If the configure file does not exist, generate it.
+          [ ! -f configure ] && { echo "configure not found, attempting to generate it via autogen.sh"; ./autogen.sh; }
           # Configure Vim for a huge feature set with static linking.
-          ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$PWD/build
+          ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
           # Compile using available cores and force static linking.
           make LDFLAGS=-static -j$(nproc)
           # Install into the build directory.
