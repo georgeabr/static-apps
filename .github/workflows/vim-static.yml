@@ -37,20 +37,15 @@ jobs:
       - name: Build Vim (Static x64)
         run: |
           cd vim
-          # Clean any previous build artifacts if they exist.
           [ -f Makefile ] && make clean || echo "No previous build detected"
-          # If the 'configure' script is missing, generate it.
           [ ! -f configure ] && ./autogen.sh
-          # Configure Vim with huge features and force static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
-          # Build Vim enforcing static linking.
           make LDFLAGS=-static -j$(nproc)
-          # Install Vim into the build directory.
           make install
         shell: bash
 
       # Step 6: Prepare the release files.
-      # Copy the built Vim executable and create a release info file.
+      # Copy the built Vim executable and create a release info file in a temporary folder.
       - name: Prepare Release Files
         run: |
           mkdir release_temp
@@ -60,22 +55,26 @@ jobs:
           echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 7: Create a ZIP archive that directly contains the files.
+      # Step 7: Create a ZIP archive containing only the files (no extra folder).
       - name: Create Release Zip
         run: |
-          # The -j option discards the path information,
-          # so the zip file will contain only 'vim' and 'release_info.txt'
+          # -j discards the directory path information.
           zip -j vim-${BUILD_VERSION}.zip release_temp/vim release_temp/release_info.txt
         shell: bash
 
-      # Step 8: Upload the ZIP artifact.
+      # Step 8: Debug: List workspace files to confirm the ZIP file is present.
+      - name: List Workspace Files
+        run: ls -l
+        shell: bash
+
+      # Step 9: Upload the ZIP artifact (this appears as an artifact in the Actions run).
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vim-static-${{ env.BUILD_VERSION }}
           path: vim-${{ env.BUILD_VERSION }}.zip
 
-      # Step 9: Create a GitHub Release and attach the ZIP file.
+      # Step 10: Create a GitHub Release and attach the ZIP file.
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1
@@ -86,4 +85,5 @@ jobs:
             **Release Version:** ${BUILD_VERSION}
             **Build Date:** $(date)
             **Commit:** ${{ github.sha }}
-          files: vim-${{ env.BUILD_VERSION }}.zip
+          artifacts: |
+            vim-${{ env.BUILD_VERSION }}.zip
