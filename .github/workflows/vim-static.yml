@@ -26,11 +26,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev autoconf zip
 
-      # Step 4: Set a build version based on the GitHub run number.
-      - name: Set Build Version
+      # Step 4: Set a base build version based on the GitHub run number.
+      - name: Set Base Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-          echo "Build version set to ${BUILD_VERSION}"
+          echo "Base build version set to ${BUILD_VERSION}"
         shell: bash
 
       # Step 5: Build Vim with static linking.
@@ -44,46 +44,62 @@ jobs:
           make install
         shell: bash
 
-      # Step 6: Prepare the release files.
-      # Copy the built Vim executable and create a release info file in a temporary folder.
+      # Step 6: Extract the patch level from the built Vim.
+      # This step runs the built Vim executable (from build/bin/vim) with "--version"
+      # and extracts the highest patch number from the "Included patches:" line.
+      - name: Get Patch Level and Set Final Build Tag
+        run: |
+          PATCH_OUTPUT=$(build/bin/vim --version | grep "Included patches:")
+          # Expected output format: "Included patches: 1-1234"
+          PATCHLEVEL=$(echo "$PATCH_OUTPUT" | sed 's/.*-//' | awk '{print $1}')
+          echo "PATCHLEVEL is $PATCHLEVEL"
+          # Combine the base build version and patch level to form the final tag, e.g. "v8-p1234"
+          echo "BUILD_TAG=${BUILD_VERSION}-p${PATCHLEVEL}" >> $GITHUB_ENV
+          echo "Final build tag set to ${BUILD_TAG}"
+        shell: bash
+
+      # Step 7: Prepare the release files.
+      # Create a temporary folder and copy in the built Vim executable and generate a release info file.
       - name: Prepare Release Files
         run: |
           mkdir release_temp
           cp build/bin/vim release_temp/vim
-          echo "Release Version: ${BUILD_VERSION}" > release_temp/release_info.txt
+          echo "Release Version: ${BUILD_TAG}" > release_temp/release_info.txt
           echo "Build Date: $(date)" >> release_temp/release_info.txt
           echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 7: Create a ZIP archive containing only the files (no extra folder).
+      # Step 8: Create a ZIP archive containing only the files (no nesting).
       - name: Create Release Zip
         run: |
-          # -j discards the directory path information.
-          zip -j vim-${BUILD_VERSION}.zip release_temp/vim release_temp/release_info.txt
+          # -j option discards directory paths;
+          # The final artifact will contain only "vim" and "release_info.txt" at its root.
+          zip -j vim-${BUILD_TAG}.zip release_temp/vim release_temp/release_info.txt
         shell: bash
 
-      # Step 8: Debug: List workspace files to confirm the ZIP file is present.
-      - name: List Workspace Files
-        run: ls -l
-        shell: bash
-
-      # Step 9: Upload the ZIP artifact (this appears as an artifact in the Actions run).
+      # Step 9: Upload the ZIP artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vim-static-${{ env.BUILD_VERSION }}
-          path: vim-${{ env.BUILD_VERSION }}.zip
+          name: vim-static-${{ env.BUILD_TAG }}
+          path: vim-${{ env.BUILD_TAG }}.zip
 
-      # Step 10: Create a GitHub Release and attach the ZIP file.
+      # Step 10: Get the full build date.
+      - name: Get Build Date
+        run: |
+          echo "BUILD_DATE=$(date)" >> $GITHUB_ENV
+        shell: bash
+
+      # Step 11: Create a GitHub Release and attach the ZIP asset.
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.BUILD_VERSION }}
-          name: "Vim ${BUILD_VERSION}"
+          tag: ${{ env.BUILD_TAG }}
+          name: "Vim ${BUILD_TAG} Latest"
           body: |
-            **Release Version:** ${BUILD_VERSION}
-            **Build Date:** $(date)
+            **Release Version:** ${BUILD_TAG}
+            **Build Date:** ${BUILD_DATE}
             **Commit:** ${{ github.sha }}
           artifacts: |
-            vim-${{ env.BUILD_VERSION }}.zip
+            vim-${{ env.BUILD_TAG }}.zip
