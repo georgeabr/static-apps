@@ -1,4 +1,4 @@
-name: Vim Static Release
+name: Vim Static Release 
 
 on:
   push:
