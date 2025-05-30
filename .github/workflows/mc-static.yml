@@ -1,4 +1,4 @@
-name: Build and Release Static MinIO mc (RELEASE.2025-05-21T01-59-54Z)
+name: Build and Release Midnight Commander (mc-4.8.33)
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Set Environment Variables
         run: |
-          echo "MC_VERSION=RELEASE.2025-05-21T01-59-54Z" >> $GITHUB_ENV
+          echo "MC_VERSION=4.8.33" >> $GITHUB_ENV
           echo "FINAL_VERSION=mc-$MC_VERSION-static" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d')" >> $GITHUB_ENV
 
@@ -25,9 +25,9 @@ jobs:
           sudo apt-get install -y build-essential wget tar \
             libncursesw5-dev libglib2.0-dev pkg-config
 
-      - name: Download and extract MinIO mc source
+      - name: Download and extract Midnight Commander source
         run: |
-          wget --no-check-certificate https://github.com/minio/mc/archive/refs/tags/${MC_VERSION}.tar.gz -O mc.tar.gz
+          wget --no-check-certificate https://github.com/MidnightCommander/mc/archive/refs/tags/${MC_VERSION}.tar.gz -O mc.tar.gz
           tar -xf mc.tar.gz
           mv mc-${MC_VERSION} mc-source
 
@@ -39,14 +39,14 @@ jobs:
 
       - name: Retrieve binary and prepare release asset
         run: |
-          cp mc-source/mc $GITHUB_WORKSPACE/mc-static
+          cp mc-source/src/mc $GITHUB_WORKSPACE/mc-static
           zip mc-${FINAL_VERSION}.zip mc-static
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.FINAL_VERSION }}
-          name: "MinIO mc ${{ env.FINAL_VERSION }}"
+          name: "Midnight Commander ${{ env.FINAL_VERSION }}"
           body: |
             Statically linked x86-64 executable
             **Release Version:** ${{ env.FINAL_VERSION }}
