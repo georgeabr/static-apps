@@ -17,9 +17,10 @@ jobs:
 
       # Step 2: Clone the official Vim repository.
       - name: Clone Official Vim Repository
-        run: git clone https://github.com/vim/vim.git
+        run: |
+          git clone https://github.com/vim/vim.git
 
-      # Step 3: Install the required build dependencies.
+      # Step 3: Install required build dependencies.
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
@@ -48,13 +49,13 @@ jobs:
           fi
           # Configure Vim for a huge feature set with static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
-          # Build Vim, forcing static linking.
+          # Build Vim, enforcing static linking.
           make LDFLAGS=-static -j$(nproc)
           # Install Vim into the build directory.
           make install
         shell: bash
 
-      # Step 6: Verify PAT Access (temporary debugging step).
+      # (Optional) Step 6: Verify PAT Access (temporary debugging step).
       - name: Verify PAT Access
         env:
           MY_PAT: ${{ secrets.MY_PAT }}
@@ -68,13 +69,14 @@ jobs:
         env:
           MY_PAT: ${{ secrets.MY_PAT }}
         run: |
-          # Instead of using github-actions[bot], set the git user to your GitHub username.
+          # Set the git user to your account (this affects commit metadata only).
           git config --global user.name "georgeabr"
           git config --global user.email "georgeabr@users.noreply.github.com"
           echo "Tagging commit with ${BUILD_VERSION}"
           git tag ${BUILD_VERSION}
-          # Push the tag using the PAT. Note the .git suffix in the URL.
-          git push https://$MY_PAT@github.com/georgeabr/static-apps.git ${BUILD_VERSION}
+          # Push the tag using an explicit username in the URL.
+          # This forces the credentials to be used as 'georgeabr' rather than 'github-actions[bot]'.
+          git push https://georgeabr:${MY_PAT}@github.com/georgeabr/static-apps.git ${BUILD_VERSION}
         shell: bash
 
       # Step 8: Package the built Vim installation into a ZIP file.
