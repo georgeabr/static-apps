@@ -1,6 +1,6 @@
 name: Build and Release Static Midnight Commander (mc-4.8.33)
 
-# Run the workflow only when this workflow file itself is updated.
+# Trigger the workflow only when this workflow file is updated.
 on:
   push:
     paths:
@@ -23,8 +23,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential wget tar \
+          sudo apt-get install -y build-essential wget tar \
             libncursesw5-dev libglib2.0-dev pkg-config
 
       # Download and extract Midnight Commander 4.8.33.
@@ -37,7 +36,7 @@ jobs:
       - name: Configure and build static binary with VFS enabled
         run: |
           cd mc-${MC_VERSION}
-          # Force static linking; ensure that all needed static libraries are available.
+          # Force static linking - ensure that all needed static libraries are available.
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
@@ -70,8 +69,9 @@ jobs:
           asset_content_type: application/octet-stream
 
       # Also upload the binary as an artifact.
+      # Pinning the action to a specific commit hash to avoid missing download info.
       - name: Upload artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@88ec86572a5f42d8e23a26fa1ff6c5a344b5791a
         with:
           name: mc-static-artifact
           path: mc-static
