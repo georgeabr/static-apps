@@ -19,19 +19,19 @@ jobs:
       - name: Clone Official Vim Repository
         run: git clone https://github.com/vim/vim.git
 
-      # Step 3: Install the required build dependencies.
+      # Step 3: Install required build dependencies.
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev zip autoconf
 
-      # Step 4: Set the build version (using the GitHub run number).
+      # Step 4: Set the build version using the GitHub run number.
       - name: Set Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "Build version set to ${BUILD_VERSION}"
 
-      # Step 5: Build Vim (static x64).
+      # Step 5: Build Vim (Static x64).
       - name: Build Vim (Static x64)
         run: |
           cd vim
@@ -43,7 +43,7 @@ jobs:
             if [ -f autogen.sh ]; then
               ./autogen.sh
             else
-              echo "Error: autogen.sh not found" && exit 1
+              echo "Error: autogen.sh not found." && exit 1
             fi
           fi
           # Configure Vim for a huge feature set with static linking.
@@ -54,19 +54,20 @@ jobs:
           make install
         shell: bash
 
-      # Step 6: Tag your repository with the build version.
+      # Step 6: Tag your repository with the build version using a PAT.
       - name: Tag Repository with Build Version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_PAT: ${{ secrets.MY_PAT }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo "Tagging the commit with ${BUILD_VERSION}"
+          echo "Tagging commit with ${BUILD_VERSION}"
           git tag ${BUILD_VERSION}
-          git push origin ${BUILD_VERSION}
+          # Push the tag using the PAT. This URL format authenticates the push.
+          git push https://$MY_PAT@github.com/${{ github.repository }} ${BUILD_VERSION}
         shell: bash
 
-      # Step 7: Package the built Vim installation into a ZIP file.
+      # Step 7: Create a ZIP artifact from the built Vim installation.
       - name: Create Artifact Zip
         run: zip -r vim-${BUILD_VERSION}.zip build
         shell: bash
