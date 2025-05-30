@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential wget tar autoconf automake libtool gettext \
+            build-essential wget tar autoconf automake libtool gettext intltool \
             libncursesw5-dev libglib2.0-dev pkg-config libslang2-dev
 
       - name: Download and extract Midnight Commander source
@@ -34,20 +34,19 @@ jobs:
 
       - name: Provide dummy autopoint
         run: |
-          # Create a dummy autopoint that does nothing, to satisfy autoreconf.
+          # Create a dummy 'autopoint' to satisfy autotools if needed.
           echo '#!/bin/sh' > dummy_autopoint
           chmod +x dummy_autopoint
           sudo mv dummy_autopoint /usr/local/bin/autopoint
 
-      - name: Prepare missing autotools files
+      - name: Run intltoolize to generate NLS files
+        working-directory: mc-source
         run: |
-          cd mc-source
-          mkdir -p config
-          touch config/config.rpath ABOUT-NLS
+          intltoolize --force --copy --automake
 
       - name: Generate configure script and build static binary
+        working-directory: mc-source
         run: |
-          cd mc-source
           autoreconf -fi
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
