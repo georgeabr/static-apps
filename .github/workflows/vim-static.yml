@@ -14,48 +14,63 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Set the build version using the GitHub run number.
+      # Step 2: Clone the official Vim repository.
+      - name: Clone Official Vim Repository
+        run: |
+          git clone https://github.com/vim/vim.git
+
+      # Step 3: Install required build dependencies.
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev zip autoconf
+
+      # Step 4: Set the build version using the GitHub run number.
       - name: Set Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "Build version set to ${BUILD_VERSION}"
         shell: bash
 
-      # Step 3: Create a fake build file.
-      - name: Create Fake Build File
+      # Step 5: Build Vim (Static x64).
+      - name: Build Vim (Static x64)
         run: |
-          echo "This is a fake build artifact for ${BUILD_VERSION}" > fake_build.txt
+          cd vim
+          # Clean previous build artifacts if they exist.
+          [ -f Makefile ] && make clean || echo "No previous build – starting fresh"
+          # Run autogen.sh to generate configure if it's not present.
+          [ ! -f configure ] && { echo "configure not found; running autogen.sh"; ./autogen.sh; }
+          # Configure Vim with a huge feature set and static linking.
+          ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
+          # Build Vim using all available cores and force static linking.
+          make LDFLAGS=-static -j$(nproc)
+          # Install Vim into the build directory.
+          make install
         shell: bash
 
-      # Step 4: Tag your repository with the build version using your PAT.
+      # Step 6: Tag your repository with the build version.
       - name: Tag Repository with Build Version
         env:
-          MY_PAT: ${{ secrets.MY_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Set Git's user configuration.
-          git config --global user.name "georgeabr"
-          git config --global user.email "georgeabr@users.noreply.github.com"
+          # Configure git with the default github-actions[bot] identity.
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           echo "Tagging commit with ${BUILD_VERSION}"
           git tag ${BUILD_VERSION}
-          # Remove the existing remote origin.
-          git remote remove origin
-          # Add remote with explicit credentials.
-          git remote add origin https://georgeabr:${MY_PAT}@github.com/georgeabr/static-apps.git
-          # Display the remote URL for debugging.
-          git remote -v
-          # Push the new tag.
+          # Push the tag using the default GITHUB_TOKEN.
           git push origin ${BUILD_VERSION}
         shell: bash
 
-      # Step 5: Package the fake build file into a ZIP artifact.
+      # Step 7: Package the built Vim installation into a ZIP artifact.
       - name: Create Artifact Zip
         run: |
-          zip -r fake_build_${BUILD_VERSION}.zip fake_build.txt
+          zip -r vim-${BUILD_VERSION}.zip build
         shell: bash
 
-      # Step 6: Upload the ZIP artifact.
+      # Step 8: Upload the ZIP artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fake-build-artifact-${{ env.BUILD_VERSION }}
-          path: fake_build_${{ env.BUILD_VERSION }}.zip
+          name: vim-static-${{ env.BUILD_VERSION }}
+          path: vim-${{ env.BUILD_VERSION }}.zip
