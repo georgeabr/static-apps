@@ -14,78 +14,48 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Clone the official Vim repository.
-      - name: Clone Official Vim Repository
-        run: git clone https://github.com/vim/vim.git
-
-      # Step 3: Install required build dependencies.
-      - name: Install Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libncurses-dev zip autoconf
-
-      # Step 4: Set the build version (e.g. v1, v2, …) using the GitHub run number.
+      # Step 2: Set the build version using the GitHub run number.
       - name: Set Build Version
         run: |
           echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "Build version set to ${BUILD_VERSION}"
-
-      # Step 5: Build Vim (Static x64).
-      - name: Build Vim (Static x64)
-        run: |
-          cd vim
-          # Clean previous builds if a Makefile exists.
-          [ -f Makefile ] && make clean || echo "No previous build – starting fresh"
-          # Generate the 'configure' script if it's missing.
-          if [ ! -f configure ]; then
-            echo "configure not found; generating it using autogen.sh"
-            if [ -f autogen.sh ]; then
-              ./autogen.sh
-            else
-              echo "Error: autogen.sh not found." && exit 1
-            fi
-          fi
-          # Configure Vim with a huge feature set and static linking.
-          ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
-          # Build Vim enforcing static linking.
-          make LDFLAGS=-static -j$(nproc)
-          # Install Vim into the build directory.
-          make install
         shell: bash
 
-      # (Optional) Step 6: Verify PAT Access
-      - name: Verify PAT Access
-        env:
-          MY_PAT: ${{ secrets.MY_PAT }}
+      # Step 3: Create a fake build file.
+      - name: Create Fake Build File
         run: |
-          echo "Listing remote refs to test PAT authentication..."
-          git ls-remote https://$MY_PAT@github.com/georgeabr/static-apps.git
+          echo "This is a fake build artifact for ${BUILD_VERSION}" > fake_build.txt
         shell: bash
 
-      # Step 7: Tag your repository with the build version using your PAT.
+      # Step 4: Tag your repository with the build version using your PAT.
       - name: Tag Repository with Build Version
         env:
           MY_PAT: ${{ secrets.MY_PAT }}
         run: |
-          # Set the git user to your own account.
+          # Set Git's user configuration.
           git config --global user.name "georgeabr"
           git config --global user.email "georgeabr@users.noreply.github.com"
           echo "Tagging commit with ${BUILD_VERSION}"
           git tag ${BUILD_VERSION}
-          # Override the remote URL so that it uses your username and PAT.
-          git remote set-url origin https://georgeabr:${MY_PAT}@github.com/georgeabr/static-apps.git
+          # Remove the existing remote origin.
+          git remote remove origin
+          # Add remote with explicit credentials.
+          git remote add origin https://georgeabr:${MY_PAT}@github.com/georgeabr/static-apps.git
+          # Display the remote URL for debugging.
+          git remote -v
           # Push the new tag.
           git push origin ${BUILD_VERSION}
         shell: bash
 
-      # Step 8: Package the built Vim installation into a ZIP file.
+      # Step 5: Package the fake build file into a ZIP artifact.
       - name: Create Artifact Zip
-        run: zip -r vim-${BUILD_VERSION}.zip build
+        run: |
+          zip -r fake_build_${BUILD_VERSION}.zip fake_build.txt
         shell: bash
 
-      # Step 9: Upload the ZIP artifact.
+      # Step 6: Upload the ZIP artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vim-static-${{ env.BUILD_VERSION }}
-          path: vim-${{ env.BUILD_VERSION }}.zip
+          name: fake-build-artifact-${{ env.BUILD_VERSION }}
+          path: fake_build_${{ env.BUILD_VERSION }}.zip
