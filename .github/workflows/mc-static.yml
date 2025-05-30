@@ -13,7 +13,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "MC_VERSION=4.8.33" >> $GITHUB_ENV
-          echo "FINAL_VERSION=mc-$MC_VERSION-static" >> $GITHUB_ENV
+          echo "FINAL_VERSION=mc-4.8.33-static" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date -u +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Checkout repository
@@ -22,7 +22,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential wget tar \
+          sudo apt-get install -y build-essential wget tar autoconf automake libtool \
             libncursesw5-dev libglib2.0-dev pkg-config
 
       - name: Download and extract Midnight Commander source
@@ -31,13 +31,14 @@ jobs:
           tar -xf mc.tar.gz
           mv mc-${MC_VERSION} mc-source
 
-      - name: Configure and build static binary
+      - name: Generate configure script and build static binary
         run: |
           cd mc-source
+          autoreconf -fi
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
-      - name: Retrieve binary and prepare release asset
+      - name: Prepare release asset
         run: |
           cp mc-source/src/mc $GITHUB_WORKSPACE/mc-static
           zip mc-${FINAL_VERSION}.zip mc-static
