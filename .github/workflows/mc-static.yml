@@ -1,0 +1,77 @@
+name: Build and Release Static Midnight Commander (mc-4.8.33)
+
+# Trigger the workflow only when this workflow file itself is updated.
+on:
+  push:
+    paths:
+      - ".github/workflows/mc-static.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MC_VERSION: "4.8.33"
+      RELEASE_TAG: "v4.8.33-static"
+      RELEASE_NAME: "Midnight Commander 4.8.33 Static Build"
+
+    steps:
+      # Check out the repository in case any modifications are present.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Install the required build dependencies.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential wget tar \
+            libncursesw5-dev libglib2.0-dev pkg-config
+
+      # Download and extract Midnight Commander 4.8.33.
+      - name: Download and extract source
+        run: |
+          wget --no-check-certificate https://ftp.midnight-commander.org/mc-${MC_VERSION}.tar.xz
+          tar -xf mc-${MC_VERSION}.tar.xz
+
+      # Configure and build the static binary with VFS enabled.
+      - name: Configure and build static binary with VFS enabled
+        run: |
+          cd mc-${MC_VERSION}
+          # Force static linking (requires static versions of dependencies)
+          LDFLAGS="-static" ./configure --prefix=/usr/local
+          make -j$(nproc)
+
+      # Retrieve the compiled binary.
+      - name: Retrieve binary artifact
+        run: |
+          cp mc-${MC_VERSION}/src/mc $GITHUB_WORKSPACE/mc-static
+
+      # Create a GitHub release.
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          release_name: ${{ env.RELEASE_NAME }}
+          draft: false
+          prerelease: false
+
+      # Upload the binary as a release asset.
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./mc-static
+          asset_name: mc-static
+          asset_content_type: application/octet-stream
+
+      # Also upload the binary as an artifact.
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: mc-static-artifact
+          path: mc-static
