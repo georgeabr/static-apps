@@ -1,4 +1,4 @@
-name: Build and Release Static Midnight Commander (mc-4.8.33)
+name: Build and Release Static MinIO mc (RELEASE.2025-05-21T01-59-54Z)
 
 on:
   push:
@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      MC_VERSION: "4.8.33"
-      FINAL_VERSION: "mc-4.8.33-static"
+      MC_VERSION: "RELEASE.2025-05-21T01-59-54Z"
+      FINAL_VERSION: "mc-${{ env.MC_VERSION }}-static"
       BUILD_DATE: ${{ github.run_date }}
 
     steps:
@@ -23,27 +23,28 @@ jobs:
           sudo apt-get install -y build-essential wget tar \
             libncursesw5-dev libglib2.0-dev pkg-config
 
-      - name: Download and extract Midnight Commander
+      - name: Download and extract MinIO mc source
         run: |
-          wget --no-check-certificate https://ftp.midnight-commander.org/${MC_VERSION}.tar.xz
-          tar -xf ${MC_VERSION}.tar.xz
+          wget --no-check-certificate https://github.com/minio/mc/archive/refs/tags/${MC_VERSION}.tar.gz -O mc.tar.gz
+          tar -xf mc.tar.gz
+          mv mc-${MC_VERSION} mc-source
 
-      - name: Configure and build static binary with VFS enabled
+      - name: Configure and build static binary
         run: |
-          cd ${MC_VERSION}
+          cd mc-source
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
       - name: Retrieve binary and prepare release asset
         run: |
-          cp ${MC_VERSION}/src/mc $GITHUB_WORKSPACE/mc-static
+          cp mc-source/mc $GITHUB_WORKSPACE/mc-static
           zip mc-${FINAL_VERSION}.zip mc-static
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.FINAL_VERSION }}
-          name: "Midnight Commander ${{ env.FINAL_VERSION }}"
+          name: "MinIO mc ${{ env.FINAL_VERSION }}"
           body: |
             Statically linked x86-64 executable
             **Release Version:** ${{ env.FINAL_VERSION }}
