@@ -23,8 +23,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential wget tar autoconf automake libtool gettext intltool \
-            libncursesw5-dev libglib2.0-dev pkg-config libslang2-dev
+            build-essential wget tar autoconf automake libtool gettext \
+            libncursesw5-dev libglib2.0-dev pkg-config libslang2-dev \
+            libssh2-1-dev libx11-dev libgpm-dev
 
       - name: Download and extract Midnight Commander source
         run: |
@@ -34,21 +35,22 @@ jobs:
 
       - name: Provide dummy autopoint
         run: |
-          # Create a dummy 'autopoint' to satisfy autotools if needed.
+          # Create a dummy autopoint to satisfy the build system if needed.
           echo '#!/bin/sh' > dummy_autopoint
           chmod +x dummy_autopoint
           sudo mv dummy_autopoint /usr/local/bin/autopoint
 
-      - name: Run intltoolize to generate NLS files
-        working-directory: mc-source
+      - name: Prepare missing autotools files
         run: |
-          intltoolize --force --copy --automake
+          cd mc-source
+          mkdir -p config
+          touch config/config.rpath ABOUT-NLS
 
       - name: Generate configure script and build static binary
-        working-directory: mc-source
         run: |
+          cd mc-source
           autoreconf -fi
-          LDFLAGS="-static" ./configure --prefix=/usr/local
+          LDFLAGS="-static" ./configure --prefix=/usr/local --disable-nls
           make -j$(nproc)
 
       - name: Prepare release asset
