@@ -39,9 +39,9 @@ jobs:
           cd vim
           # Clean any previous build artifacts if they exist.
           [ -f Makefile ] && make clean || echo "No previous build detected"
-          # Generate the 'configure' script if it's missing.
+          # If the 'configure' script is missing, generate it.
           [ ! -f configure ] && ./autogen.sh
-          # Configure Vim with a huge feature set and static linking.
+          # Configure Vim with huge features and force static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
           # Build Vim forcing static linking.
           make LDFLAGS=-static -j$(nproc)
@@ -49,22 +49,23 @@ jobs:
           make install
         shell: bash
 
-      # Step 6: Prepare the release directory.
-      # This step copies the built Vim executable (assumed to be at build/bin/vim)
-      # into a new "release" folder and writes release/build information.
-      - name: Prepare Release Directory
+      # Step 6: Prepare the release files.
+      # Copy the built Vim executable and release info into a temporary folder.
+      - name: Prepare Release Files
         run: |
-          mkdir release
-          cp build/bin/vim release/vim
-          echo "Release Version: ${BUILD_VERSION}" > release/release_info.txt
-          echo "Build Date: $(date)" >> release/release_info.txt
-          echo "Commit: ${{ github.sha }}" >> release/release_info.txt
+          mkdir release_temp
+          cp build/bin/vim release_temp/vim
+          echo "Release Version: ${BUILD_VERSION}" > release_temp/release_info.txt
+          echo "Build Date: $(date)" >> release_temp/release_info.txt
+          echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 7: Create a ZIP archive of the release folder.
+      # Step 7: Create a ZIP archive directly from the contents of the staging folder.
       - name: Create Release Zip
         run: |
-          zip -r vim-${BUILD_VERSION}.zip release
+          cd release_temp
+          zip -r ../vim-${BUILD_VERSION}.zip * 
+          cd ..
         shell: bash
 
       # Step 8: Upload the ZIP artifact.
