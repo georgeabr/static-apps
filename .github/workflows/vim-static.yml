@@ -43,14 +43,14 @@ jobs:
           [ ! -f configure ] && ./autogen.sh
           # Configure Vim with huge features and force static linking.
           ./configure --with-features=huge --enable-static --disable-dynamic --prefix=$GITHUB_WORKSPACE/build
-          # Build Vim forcing static linking.
+          # Build Vim enforcing static linking.
           make LDFLAGS=-static -j$(nproc)
           # Install Vim into the build directory.
           make install
         shell: bash
 
       # Step 6: Prepare the release files.
-      # Copy the built Vim executable and release info into a temporary folder.
+      # Copy the built Vim executable and create a release info file.
       - name: Prepare Release Files
         run: |
           mkdir release_temp
@@ -60,12 +60,12 @@ jobs:
           echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 7: Create a ZIP archive directly from the contents of the staging folder.
+      # Step 7: Create a ZIP archive that directly contains the files.
       - name: Create Release Zip
         run: |
-          cd release_temp
-          zip -r ../vim-${BUILD_VERSION}.zip * 
-          cd ..
+          # The -j option discards the path information,
+          # so the zip file will contain only 'vim' and 'release_info.txt'
+          zip -j vim-${BUILD_VERSION}.zip release_temp/vim release_temp/release_info.txt
         shell: bash
 
       # Step 8: Upload the ZIP artifact.
