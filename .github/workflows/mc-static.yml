@@ -34,7 +34,7 @@ jobs:
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
-      - name: Retrieve binary
+      - name: Retrieve binary and prepare release asset
         run: |
           cp ${MC_VERSION}/src/mc $GITHUB_WORKSPACE/mc-static
           zip mc-${FINAL_VERSION}.zip mc-static
@@ -49,12 +49,5 @@ jobs:
             **Release Version:** ${{ env.FINAL_VERSION }}
             **Build Date:** ${{ env.BUILD_DATE }}
             **Commit:** ${{ github.sha }}
-          artifacts: |
-            mc-${{ env.FINAL_VERSION }}.zip
+          artifacts: mc-${{ env.FINAL_VERSION }}.zip
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: mc-static-artifact
-          path: mc-${{ env.FINAL_VERSION }}.zip
