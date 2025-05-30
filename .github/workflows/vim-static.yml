@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout your repository.
+      # Step 1: Checkout the repository.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -26,14 +26,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libncurses-dev autoconf zip
 
-      # Step 4: Set a base build version based on the GitHub run number.
-      - name: Set Base Build Version
-        run: |
-          echo "BUILD_VERSION=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-          echo "Base build version set to ${BUILD_VERSION}"
-        shell: bash
-
-      # Step 5: Build Vim with static linking.
+      # Step 4: Build Vim with static linking.
       - name: Build Vim (Static x64)
         run: |
           cd vim
@@ -44,62 +37,72 @@ jobs:
           make install
         shell: bash
 
-      # Step 6: Extract the patch level from the built Vim.
-      # This step runs the built Vim executable (from build/bin/vim) with "--version"
-      # and extracts the highest patch number from the "Included patches:" line.
-      - name: Get Patch Level and Set Final Build Tag
+      # Step 5: Extract version information and set FINAL_VERSION.
+      - name: Get Version Information and Set Final Version
         run: |
+          # Get the first line of "vim --version". It might look like:
+          # "VIM - Vi IMproved 8.2 (2019 Dec 12, compiled ...)"
+          VIM_VERSION_OUTPUT=$(build/bin/vim --version | head -1)
+          echo "Vim version line: $VIM_VERSION_OUTPUT"
+          # Extract the major.minor version (e.g. "8.2") using a regex.
+          VIM_MAJOR_MINOR=$(echo "$VIM_VERSION_OUTPUT" | sed -E 's/[^0-9]*([0-9]+\.[0-9]+).*/\1/')
+          echo "VIM_MAJOR_MINOR is ${VIM_MAJOR_MINOR}"
+          # Extract the patch level from the "Included patches:" line.
           PATCH_OUTPUT=$(build/bin/vim --version | grep "Included patches:")
-          # Expected output format: "Included patches: 1-1234"
           PATCHLEVEL=$(echo "$PATCH_OUTPUT" | sed 's/.*-//' | awk '{print $1}')
-          echo "PATCHLEVEL is $PATCHLEVEL"
-          # Combine the base build version and patch level to form the final tag, e.g. "v8-p1234"
-          echo "BUILD_TAG=${BUILD_VERSION}-p${PATCHLEVEL}" >> $GITHUB_ENV
-          echo "Final build tag set to ${BUILD_TAG}"
+          echo "PATCHLEVEL is ${PATCHLEVEL}"
+          # Combine them to form the final version string, e.g., "8.2.1234".
+          FINAL_VERSION="${VIM_MAJOR_MINOR}.${PATCHLEVEL}"
+          echo "FINAL_VERSION is ${FINAL_VERSION}"
+          # Export FINAL_VERSION for later steps.
+          echo "FINAL_VERSION=${FINAL_VERSION}" >> $GITHUB_ENV
         shell: bash
 
-      # Step 7: Prepare the release files.
-      # Create a temporary folder and copy in the built Vim executable and generate a release info file.
+      # Step 6: Prepare the release files.
       - name: Prepare Release Files
         run: |
           mkdir release_temp
           cp build/bin/vim release_temp/vim
-          echo "Release Version: ${BUILD_TAG}" > release_temp/release_info.txt
+          echo "Release Version: ${FINAL_VERSION}" > release_temp/release_info.txt
           echo "Build Date: $(date)" >> release_temp/release_info.txt
           echo "Commit: ${{ github.sha }}" >> release_temp/release_info.txt
         shell: bash
 
-      # Step 8: Create a ZIP archive containing only the files (no nesting).
+      # Step 7: Create a ZIP archive containing only the files (no nested folder).
       - name: Create Release Zip
         run: |
-          # -j option discards directory paths;
-          # The final artifact will contain only "vim" and "release_info.txt" at its root.
-          zip -j vim-${BUILD_TAG}.zip release_temp/vim release_temp/release_info.txt
+          # The -j option discards directory paths so that the ZIP contains only the files themselves.
+          zip -j vim${FINAL_VERSION}.zip release_temp/vim release_temp/release_info.txt
         shell: bash
 
-      # Step 9: Upload the ZIP artifact.
+      # (Optional) Step: List workspace files to verify the ZIP is present.
+      - name: List Workspace Files
+        run: ls -l
+        shell: bash
+
+      # Step 8: Upload the custom ZIP as an artifact.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vim-static-${{ env.BUILD_TAG }}
-          path: vim-${{ env.BUILD_TAG }}.zip
+          name: vim-static-${{ env.FINAL_VERSION }}
+          path: vim${{ env.FINAL_VERSION }}.zip
 
-      # Step 10: Get the full build date.
+      # Step 9: Get the build date for release info.
       - name: Get Build Date
         run: |
           echo "BUILD_DATE=$(date)" >> $GITHUB_ENV
         shell: bash
 
-      # Step 11: Create a GitHub Release and attach the ZIP asset.
+      # Step 10: Create a GitHub Release and attach the custom ZIP asset.
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.BUILD_TAG }}
-          name: "Vim ${BUILD_TAG} Latest"
+          tag: ${{ env.FINAL_VERSION }}
+          name: "Vim ${FINAL_VERSION} Latest"
           body: |
-            **Release Version:** ${BUILD_TAG}
+            **Release Version:** ${FINAL_VERSION}
             **Build Date:** ${BUILD_DATE}
             **Commit:** ${{ github.sha }}
           artifacts: |
-            vim-${{ env.BUILD_TAG }}.zip
+            vim${{ env.FINAL_VERSION }}.zip
