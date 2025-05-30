@@ -1,6 +1,6 @@
 name: Build and Release Static Midnight Commander (mc-4.8.33)
 
-# Trigger the workflow only when this workflow file is updated.
+# Run this workflow when the workflow file itself is updated.
 on:
   push:
     paths:
@@ -15,7 +15,7 @@ jobs:
       RELEASE_NAME: "Midnight Commander 4.8.33 Static Build"
 
     steps:
-      # Checkout the repository.
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -32,15 +32,15 @@ jobs:
           wget --no-check-certificate https://ftp.midnight-commander.org/mc-${MC_VERSION}.tar.xz
           tar -xf mc-${MC_VERSION}.tar.xz
 
-      # Configure and build the static binary with VFS enabled.
+      # Build the static binary with VFS enabled.
       - name: Configure and build static binary with VFS enabled
         run: |
           cd mc-${MC_VERSION}
-          # Force static linking - ensure that all needed static libraries are available.
+          # Use static linking; ensure that all required static libraries are available.
           LDFLAGS="-static" ./configure --prefix=/usr/local
           make -j$(nproc)
 
-      # Retrieve the compiled binary.
+      # Copy the resulting binary from the build.
       - name: Retrieve binary artifact
         run: |
           cp mc-${MC_VERSION}/src/mc $GITHUB_WORKSPACE/mc-static
@@ -68,10 +68,9 @@ jobs:
           asset_name: mc-static
           asset_content_type: application/octet-stream
 
-      # Also upload the binary as an artifact.
-      # Pinning the action to a specific commit hash to avoid missing download info.
+      # Upload the binary as an artifact.
       - name: Upload artifact
-        uses: actions/upload-artifact@88ec86572a5f42d8e23a26fa1ff6c5a344b5791a
+        uses: actions/upload-artifact@v3
         with:
           name: mc-static-artifact
           path: mc-static
