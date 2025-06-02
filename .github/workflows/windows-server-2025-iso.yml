@@ -21,7 +21,7 @@ jobs:
 
       - name: Download Windows Server 2025 ISO (Verbose)
         run: |
-          Invoke-WebRequest -Uri "https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso" -OutFile "Windows_Server_2025.iso" -Verbose
+          Invoke-WebRequest -Uri "https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE-en-us.iso" -OutFile "Windows_Server_2025.iso" -Verbose
           Get-Item "Windows_Server_2025.iso"
           dir
 
@@ -34,23 +34,23 @@ jobs:
 
       - name: Mount ISO and Extract Files
         run: |
-          # Resolve the full path to the ISO
+          # Get the full path to the ISO
           $isoPath = (Resolve-Path "Windows_Server_2025.iso").Path
           # Mount the ISO
           Mount-DiskImage -ImagePath $isoPath
-          # Find the CD-ROM drive letter
+          # Find the mounted CD-ROM drive letter
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
           Write-Host "Detected ISO Drive: $isoDrive"
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
             exit 1
           }
-          # Remove any previous extraction and create the extraction folder
+          # Remove any previous extraction folder and create a new one
           if (Test-Path ".\ISO_Contents") {
               Remove-Item ".\ISO_Contents" -Recurse -Force
           }
           New-Item -ItemType Directory -Path ".\ISO_Contents"
-          # Copy the ISO contents to the folder
+          # Copy all ISO contents to the extraction folder
           Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse -Force
 
       - name: Download Intel Wireless Wi-Fi Drivers (ZIP, Verbose)
@@ -76,17 +76,17 @@ jobs:
 
       - name: Inject Extracted Drivers into Offline Windows Image
         run: |
-          # Verify that install.wim exists (typically under ISO_Contents\sources)
+          # Verify that install.wim exists (typically in ISO_Contents\sources)
           if (!(Test-Path ".\ISO_Contents\sources\install.wim")) {
               Write-Host "install.wim not found! Please verify the ISO structure."
               exit 1
           }
-          # Remove the read-only attribute from install.wim and grant full control
+          # Remove the read-only attribute and grant full control on install.wim
           Write-Host "Removing read-only attribute and resetting permissions on install.wim..."
           attrib -r ".\ISO_Contents\sources\install.wim"
           icacls ".\ISO_Contents\sources\install.wim" /grant Everyone:F
-
-          # Clean and create the mount directory
+          
+          # Clean (if necessary) and create mount directory
           if (Test-Path ".\mount") {
               Remove-Item ".\mount" -Recurse -Force
           }
@@ -105,19 +105,29 @@ jobs:
         run: |
           Install-WindowsFeature -Name Wireless-Networking
 
-      - name: Install Oscdimg
+      - name: Download Oscdimg from GitHub
         run: |
-          choco install oscdimg -y
-          oscdimg -?  # display help to verify installation
+          Write-Host "Downloading Oscdimg from GitHub..."
+          Invoke-WebRequest -Uri "https://github.com/hydrz/oscdimg/raw/refs/heads/main/oscdimg-amd64.zip" -OutFile "oscdimg-amd64.zip" -Verbose
+          Expand-Archive -Path "oscdimg-amd64.zip" -DestinationPath ".\oscdimg" -Force
+          Write-Host "Listing Oscdimg contents:"
+          dir .\oscdimg
 
       - name: Repack Customized ISO
         run: |
-          oscdimg -n -m -b".\ISO_Contents\boot\etfsboot.com" ".\ISO_Contents" "Windows_Server_2025_Custom.iso"
+          # Build the path to oscdimg.exe from the extracted folder
+          $oscdimgPath = Join-Path (Resolve-Path ".\oscdimg") "oscdimg.exe"
+          if (!(Test-Path $oscdimgPath)) {
+            Write-Host "oscdimg.exe not found in the downloaded package."
+            exit 1
+          }
+          Write-Host "Using oscdimg at: $oscdimgPath"
+          & $oscdimgPath -n -m -b".\ISO_Contents\boot\etfsboot.com" ".\ISO_Contents" "Windows_Server_2025_Custom.iso"
 
       - name: Release Updated ISO
         uses: ncipollo/release-action@v1
         with:
           artifacts: "Windows_Server_2025_Custom.iso"
-          tag: "v2025.6"
+          tag: "v2025.7"
           name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers (ZIP)"
-          body: "This release integrates Intel Wireless Wi-Fi drivers (from ZIP) into the offline image."
+          body: "This release integrates Intel Wireless Wi-Fi drivers (from ZIP) into the offline image and repacks the ISO using Oscdimg from GitHub."
