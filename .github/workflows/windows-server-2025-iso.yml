@@ -58,13 +58,24 @@ jobs:
             exit 1
           }
 
-          cmd /c "WiFi_Driver.exe /extract .\Drivers"
-
-          if (!(Test-Path ".\Drivers")) {
+          Write-Host "Extracting WiFi Driver with verbose logging..."
+          Start-Process -FilePath "WiFi_Driver.exe" -ArgumentList "/quiet", "/extract", "/destination:.\Drivers", "/log:verbose.log" -NoNewWindow -Wait
+          
+          Write-Host "Driver extraction process complete. Displaying verbose log:"
+          if (Test-Path "verbose.log") {
+              Get-Content "verbose.log"
+          } else {
+              Write-Host "Verbose log not found."
+          }
+          
+          Write-Host "Listing extracted files:"
+          dir .\Drivers
+          
+          if (!(Test-Path ".\Drivers") -or ((Get-ChildItem .\Drivers -Recurse | Measure-Object).Count -eq 0)) {
             Write-Host "Driver extraction failed! Exiting..."
             exit 1
           }
-
+          
           dism /Image:".\ISO_Contents" /Add-Driver /Driver:".\Drivers" /Recurse
 
       - name: Enable Wireless LAN Service
@@ -82,4 +93,3 @@ jobs:
           tag: "v2025.3"
           name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers"
           body: "This release includes Intel Wireless Wi-Fi drivers integrated into the installation media."
-
