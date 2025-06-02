@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install 7‑Zip (for diagnostic purposes)
+      - name: Install 7-Zip (for diagnostic purposes)
         run: |
           choco install 7zip.install -y
           7z
@@ -34,54 +34,57 @@ jobs:
 
       - name: Mount ISO and Extract Files
         run: |
+          # Resolve the full path to the ISO file
           $isoPath = (Resolve-Path "Windows_Server_2025.iso").Path
+          # Mount the ISO
           Mount-DiskImage -ImagePath $isoPath
+          # Find the mounted drive letter (CD-ROM)
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
           Write-Host "Detected ISO Drive: $isoDrive"
+          
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
             exit 1
           }
+
+          # Clean up any previous extraction and create the ISO_Contents directory
           if (Test-Path ".\ISO_Contents") {
-            Remove-Item ".\ISO_Contents" -Recurse -Force
+              Remove-Item ".\ISO_Contents" -Recurse -Force
           }
           New-Item -ItemType Directory -Path ".\ISO_Contents"
+          
+          # Copy all files from the mounted ISO to the extraction folder
           Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse -Force
 
-      - name: Download Intel Wireless Wi-Fi Drivers (Verbose)
+      - name: Download Intel Wireless Wi-Fi Drivers (ZIP, Verbose)
         run: |
-          Invoke-WebRequest -Uri "https://downloadmirror.intel.com/853377/WiFi-23.130.1-Driver64-Win10-Win11.exe" -OutFile "WiFi_Driver.exe" -Verbose
-          Get-Item "WiFi_Driver.exe"
+          Invoke-WebRequest -Uri "https://downloadmirror.intel.com/853378/WiFi-23.130.1-Driver64-Win10-Win11.zip" -OutFile "WiFi_Driver.zip" -Verbose
+          Get-Item "WiFi_Driver.zip"
           dir
 
-      - name: Extract and Integrate Drivers
+      - name: Extract Intel Wireless Wi-Fi Drivers from ZIP
         run: |
-          if (!(Test-Path "WiFi_Driver.exe")) {
-            Write-Host "WiFi driver executable missing! Exiting..."
+          if (!(Test-Path "WiFi_Driver.zip")) {
+            Write-Host "WiFi driver ZIP file is missing! Exiting..."
             exit 1
           }
-          Write-Host "Starting driver extraction using InstallShield-style switches..."
-          rem Attempt extraction using InstallShield silent extraction flags:
-          cmd /c "WiFi_Driver.exe /s /x /v\"/qn TARGETDIR=\\\".\Drivers\\\"\""
-          Write-Host "Driver extraction command finished. Waiting 20 seconds for process to complete..."
-          Start-Sleep -Seconds 20
-          
+          Write-Host "Extracting WiFi driver ZIP..."
+          Expand-Archive -Path "WiFi_Driver.zip" -DestinationPath ".\Drivers" -Force
           Write-Host "Listing extracted files in .\Drivers:"
           dir .\Drivers
-          
           if (!(Test-Path ".\Drivers") -or ((Get-ChildItem .\Drivers -Recurse | Measure-Object).Count -eq 0)) {
             Write-Host "Driver extraction failed! Exiting..."
             exit 1
           }
 
-          rem -----------------------------------------------
-          rem Now inject the extracted drivers into the offline Windows image.
-          rem Typically, the ISO contains install.wim in the sources folder.
-          rem -----------------------------------------------
+      - name: Inject Extracted Drivers into Offline Windows Image
+        run: |
+          # Check that install.wim exists (typically located in ISO_Contents\sources)
           if (!(Test-Path ".\ISO_Contents\sources\install.wim")) {
-              Write-Host "install.wim not found! Verify the ISO structure."
-              exit 1
+            Write-Host "install.wim not found! Please verify the ISO structure."
+            exit 1
           }
+          # Clean and create mount directory
           if (Test-Path ".\mount") {
               Remove-Item ".\mount" -Recurse -Force
           }
@@ -108,6 +111,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "Windows_Server_2025_Custom.iso"
-          tag: "v2025.5"
-          name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers"
-          body: "This release integrates Intel Wireless Wi-Fi drivers into the offline image using InstallShield extraction."
+          tag: "v2025.6"
+          name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers (ZIP)"
+          body: "This release integrates Intel Wireless Wi-Fi drivers extracted from the ZIP into the offline image."
