@@ -58,17 +58,19 @@ jobs:
             exit 1
           }
 
-          Write-Host "Extracting WiFi Driver with verbose logging..."
-          Start-Process -FilePath "WiFi_Driver.exe" -ArgumentList "/quiet", "/extract", "/destination:.\Drivers", "/log:verbose.log" -NoNewWindow -Wait
-          
-          Write-Host "Driver extraction process complete. Displaying verbose log:"
+          Write-Host "Starting driver extraction using cmd..."
+          cmd /c "WiFi_Driver.exe /extract /destination:.\Drivers /quiet /log:verbose.log"
+          Write-Host "Driver extraction command finished. Waiting 20 seconds for process to complete..."
+          timeout /T 20
+
+          Write-Host "Displaying verbose log:"
           if (Test-Path "verbose.log") {
-              Get-Content "verbose.log"
+            Get-Content "verbose.log"
           } else {
-              Write-Host "Verbose log not found."
+            Write-Host "Verbose log not found."
           }
-          
-          Write-Host "Listing extracted files:"
+
+          Write-Host "Listing extracted files in .\Drivers:"
           dir .\Drivers
           
           if (!(Test-Path ".\Drivers") -or ((Get-ChildItem .\Drivers -Recurse | Measure-Object).Count -eq 0)) {
@@ -76,6 +78,7 @@ jobs:
             exit 1
           }
           
+          Write-Host "Injecting extracted drivers into the ISO..."
           dism /Image:".\ISO_Contents" /Add-Driver /Driver:".\Drivers" /Recurse
 
       - name: Enable Wireless LAN Service
