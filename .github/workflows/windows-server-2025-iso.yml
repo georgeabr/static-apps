@@ -32,11 +32,18 @@ jobs:
           $isoPath = (Resolve-Path "Windows_Server_2025.iso").Path
           Mount-DiskImage -ImagePath $isoPath
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
+          Write-Host "Detected ISO Drive: $isoDrive"
+
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
             exit 1
           }
-          Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse
+
+          if (Test-Path ".\ISO_Contents") {
+            Remove-Item ".\ISO_Contents" -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path ".\ISO_Contents"
+          Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse -Force
 
       - name: Download Intel Wireless Wi-Fi Drivers (Verbose)
         run: |
