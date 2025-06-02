@@ -14,19 +14,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Windows Server 2025 ISO
+      - name: Download Windows Server 2025 ISO (Verbose)
         run: |
-          Invoke-WebRequest -Uri "https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso" -OutFile "Windows_Server_2025.iso"
+          Invoke-WebRequest -Uri "https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso" -OutFile "Windows_Server_2025.iso" -Verbose
+          Get-Item "Windows_Server_2025.iso"
+          dir
 
-      - name: Mount ISO and extract files
+      - name: Verify ISO Download
+        run: |
+          if (!(Test-Path "Windows_Server_2025.iso")) {
+            Write-Host "ISO file missing! Exiting..."
+            exit 1
+          }
+
+      - name: Mount ISO and Extract Files
         run: |
           Mount-DiskImage -ImagePath "Windows_Server_2025.iso"
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
+          if (!$isoDrive) {
+            Write-Host "ISO mount failed! Exiting..."
+            exit 1
+          }
           Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse
 
-      - name: Download Intel Wireless Wi-Fi Drivers
+      - name: Download Intel Wireless Wi-Fi Drivers (Verbose)
         run: |
-          Invoke-WebRequest -Uri "https://downloadmirror.intel.com/853377/WiFi-23.130.1-Driver64-Win10-Win11.exe" -OutFile "WiFi_Driver.exe"
+          Invoke-WebRequest -Uri "https://downloadmirror.intel.com/853377/WiFi-23.130.1-Driver64-Win10-Win11.exe" -OutFile "WiFi_Driver.exe" -Verbose
+          Get-Item "WiFi_Driver.exe"
+          dir
 
       - name: Extract and integrate drivers
         run: |
