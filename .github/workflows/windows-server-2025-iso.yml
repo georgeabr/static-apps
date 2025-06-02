@@ -47,7 +47,7 @@ jobs:
           }
           # Remove any previous extraction and create the extraction folder
           if (Test-Path ".\ISO_Contents") {
-            Remove-Item ".\ISO_Contents" -Recurse -Force
+              Remove-Item ".\ISO_Contents" -Recurse -Force
           }
           New-Item -ItemType Directory -Path ".\ISO_Contents"
           # Copy the ISO contents to the folder
@@ -104,6 +104,11 @@ jobs:
       - name: Enable Wireless LAN Service
         run: |
           Install-WindowsFeature -Name Wireless-Networking
+
+      - name: Install Oscdimg
+        run: |
+          choco install oscdimg -y
+          oscdimg -?  # display help to verify installation
 
       - name: Repack Customized ISO
         run: |
