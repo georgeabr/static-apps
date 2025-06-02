@@ -1,0 +1,51 @@
+# .github/workflows/windows-server-2025-iso.yml
+name: Windows Server 2025 Custom ISO Build with Intel Wi-Fi Drivers
+
+on:
+  push:
+    paths:
+      - '.github/workflows/windows-server-2025-iso.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Windows Server 2025 ISO
+        run: |
+          Invoke-WebRequest -Uri "https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso" -OutFile "Windows_Server_2025.iso"
+
+      - name: Mount ISO and extract files
+        run: |
+          Mount-DiskImage -ImagePath "Windows_Server_2025.iso"
+          $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
+          Copy-Item "$($isoDrive):\*" -Destination ".\ISO_Contents" -Recurse
+
+      - name: Download Intel Wireless Wi-Fi Drivers
+        run: |
+          Invoke-WebRequest -Uri "https://downloadmirror.intel.com/853377/WiFi-23.130.1-Driver64-Win10-Win11.exe" -OutFile "WiFi_Driver.exe"
+
+      - name: Extract and integrate drivers
+        run: |
+          Start-Process -FilePath "WiFi_Driver.exe" -ArgumentList "/extract .\Drivers" -NoNewWindow -Wait
+          dism /Image:".\ISO_Contents" /Add-Driver /Driver:".\Drivers" /Recurse
+
+      - name: Enable Wireless LAN Service
+        run: |
+          Install-WindowsFeature -Name Wireless-Networking
+
+      - name: Repack customized ISO
+        run: |
+          oscdimg -n -m -b".\ISO_Contents\boot\etfsboot.com" ".\ISO_Contents" "Windows_Server_2025_Custom.iso"
+
+      - name: Release updated ISO
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "Windows_Server_2025_Custom.iso"
+          tag: "v2025.3"
+          name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers"
+          body: "This release includes Intel Wireless Wi-Fi drivers integrated into the installation media."
+
