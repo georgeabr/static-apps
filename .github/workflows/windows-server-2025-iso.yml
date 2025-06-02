@@ -21,7 +21,8 @@ jobs:
 
       - name: Download Windows Server 2025 ISO (Verbose)
         run: |
-          Invoke-WebRequest -Uri "https://shorturl.at/VeNN7"
+          Invoke-WebRequest -Uri "https://shorturl.at/VeNN7" `
+              -OutFile "Windows_Server_2025.iso" -Verbose
           dir
 
       - name: Verify ISO Exists Before Mounting
