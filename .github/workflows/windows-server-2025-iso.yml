@@ -20,7 +20,7 @@ jobs:
           Get-Item "Windows_Server_2025.iso"
           dir
 
-      - name: Verify ISO Download
+      - name: Verify ISO Exists Before Mounting
         run: |
           if (!(Test-Path "Windows_Server_2025.iso")) {
             Write-Host "ISO file missing! Exiting..."
@@ -29,7 +29,8 @@ jobs:
 
       - name: Mount ISO and Extract Files
         run: |
-          Mount-DiskImage -ImagePath "Windows_Server_2025.iso"
+          $isoPath = (Resolve-Path "Windows_Server_2025.iso").Path
+          Mount-DiskImage -ImagePath $isoPath
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
@@ -43,7 +44,7 @@ jobs:
           Get-Item "WiFi_Driver.exe"
           dir
 
-      - name: Extract and integrate drivers
+      - name: Extract and Integrate Drivers
         run: |
           Start-Process -FilePath "WiFi_Driver.exe" -ArgumentList "/extract .\Drivers" -NoNewWindow -Wait
           dism /Image:".\ISO_Contents" /Add-Driver /Driver:".\Drivers" /Recurse
@@ -52,11 +53,11 @@ jobs:
         run: |
           Install-WindowsFeature -Name Wireless-Networking
 
-      - name: Repack customized ISO
+      - name: Repack Customized ISO
         run: |
           oscdimg -n -m -b".\ISO_Contents\boot\etfsboot.com" ".\ISO_Contents" "Windows_Server_2025_Custom.iso"
 
-      - name: Release updated ISO
+      - name: Release Updated ISO
         uses: ncipollo/release-action@v1
         with:
           artifacts: "Windows_Server_2025_Custom.iso"
