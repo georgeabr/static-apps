@@ -33,12 +33,10 @@ jobs:
           Mount-DiskImage -ImagePath $isoPath
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
           Write-Host "Detected ISO Drive: $isoDrive"
-
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
             exit 1
           }
-
           if (Test-Path ".\ISO_Contents") {
             Remove-Item ".\ISO_Contents" -Recurse -Force
           }
@@ -61,15 +59,15 @@ jobs:
           Write-Host "Starting driver extraction using cmd..."
           cmd /c "WiFi_Driver.exe /extract /destination:.\Drivers /quiet /log:verbose.log"
           Write-Host "Driver extraction command finished. Waiting 20 seconds for process to complete..."
-          timeout /T 20
-
+          Start-Sleep -Seconds 20
+          
           Write-Host "Displaying verbose log:"
           if (Test-Path "verbose.log") {
-            Get-Content "verbose.log"
+              Get-Content "verbose.log"
           } else {
-            Write-Host "Verbose log not found."
+              Write-Host "Verbose log not found."
           }
-
+          
           Write-Host "Listing extracted files in .\Drivers:"
           dir .\Drivers
           
