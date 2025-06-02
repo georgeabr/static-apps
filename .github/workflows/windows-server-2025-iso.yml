@@ -13,6 +13,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
+      - name: Install 7-Zip
+        run: |
+          choco install 7zip.install -y
+          7z  # display version info to verify installation
 
       - name: Download Windows Server 2025 ISO (Verbose)
         run: |
@@ -33,10 +38,12 @@ jobs:
           Mount-DiskImage -ImagePath $isoPath
           $isoDrive = (Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }).DriveLetter
           Write-Host "Detected ISO Drive: $isoDrive"
+          
           if (!$isoDrive) {
             Write-Host "ISO mount failed! Exiting..."
             exit 1
           }
+          
           if (Test-Path ".\ISO_Contents") {
             Remove-Item ".\ISO_Contents" -Recurse -Force
           }
@@ -49,24 +56,15 @@ jobs:
           Get-Item "WiFi_Driver.exe"
           dir
 
-      - name: Extract and Integrate Drivers
+      - name: Extract and Integrate Drivers using 7-Zip
         run: |
           if (!(Test-Path "WiFi_Driver.exe")) {
             Write-Host "WiFi driver executable missing! Exiting..."
             exit 1
           }
-
-          Write-Host "Starting driver extraction using cmd..."
-          cmd /c "WiFi_Driver.exe /extract /destination:.\Drivers /quiet /log:verbose.log"
-          Write-Host "Driver extraction command finished. Waiting 20 seconds for process to complete..."
-          Start-Sleep -Seconds 20
           
-          Write-Host "Displaying verbose log:"
-          if (Test-Path "verbose.log") {
-              Get-Content "verbose.log"
-          } else {
-              Write-Host "Verbose log not found."
-          }
+          Write-Host "Extracting WiFi Driver using 7-Zip..."
+          7z x WiFi_Driver.exe -oDrivers -y
           
           Write-Host "Listing extracted files in .\Drivers:"
           dir .\Drivers
@@ -91,6 +89,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "Windows_Server_2025_Custom.iso"
-          tag: "v2025.3"
-          name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers"
-          body: "This release includes Intel Wireless Wi-Fi drivers integrated into the installation media."
+          tag: "v2025.4"
+          name: "Windows Server 2025 ISO with Intel Wi-Fi Drivers (7‑Zip extraction)"
+          body: "This release includes Intel Wireless Wi-Fi drivers extracted using 7‑Zip and integrated into the installation media."
