@@ -53,7 +53,18 @@ jobs:
 
       - name: Extract and Integrate Drivers
         run: |
-          Start-Process -FilePath "WiFi_Driver.exe" -ArgumentList "/extract .\Drivers" -NoNewWindow -Wait
+          if (!(Test-Path "WiFi_Driver.exe")) {
+            Write-Host "WiFi driver executable missing! Exiting..."
+            exit 1
+          }
+
+          cmd /c "WiFi_Driver.exe /extract .\Drivers"
+
+          if (!(Test-Path ".\Drivers")) {
+            Write-Host "Driver extraction failed! Exiting..."
+            exit 1
+          }
+
           dism /Image:".\ISO_Contents" /Add-Driver /Driver:".\Drivers" /Recurse
 
       - name: Enable Wireless LAN Service
